@@ -39,11 +39,15 @@ def webhook():
                 res = requests.post(GEMINI_URL, json=payload)
                 bot_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"]
                 
-                # إرسال للواتساب
+                # إرسال للواتساب مع طباعة النتيجة للتأكد
                 send_url = f"https://api.green-api.com/waInstance{ID_INSTANCE}/sendMessage/{API_TOKEN}"
-                requests.post(send_url, json={"chatId": chat_id, "message": bot_reply})
+                whatsapp_res = requests.post(send_url, json={"chatId": chat_id, "message": bot_reply})
+                
+                # هذا السطر سيخبرنا في Render Logs إذا نجح الإرسال أم لا
+                print(f"رد Green-API: {whatsapp_res.status_code} - {whatsapp_res.text}")
+                
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error in processing: {e}")
 
     return "OK", 200
 

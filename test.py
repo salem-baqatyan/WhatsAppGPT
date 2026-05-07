@@ -1,11 +1,18 @@
 import requests
 
-url = "http://127.0.0.1:5000/chat"
-data = {"message": "السلام عليكم، ايش أفضل جوال عندكم؟"}
+# رابط السيرفر الخاص بك على ريندر
+url = "https://whatsappgpt-2dk9.onrender.com/webhook"
 
-try:
-    response = requests.post(url, json=data)
-    print("رد البوت الذكي:")
-    print(response.json().get('response'))
-except Exception as e:
-    print(f"حدث خطأ أثناء الاتصال بالسيرفر: {e}")
+# بيانات وهمية كأنها قادمة من واتساب
+payload = {
+    "typeWebhook": "incomingMessageReceived",
+    "senderData": {"chatId": "967775445127@c.us"},
+    "messageData": {
+        "textMessageData": {"textMessage": "هلا، بكم الجوال الـ P30؟"}
+    }
+}
+
+print("جاري فحص السيرفر...")
+response = requests.post(url, json=payload)
+print(f"الحالة: {response.status_code}")
+print(f"الرد: {response.text}")
