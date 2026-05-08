@@ -21,21 +21,24 @@ def home():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    print("وصلت بيانات من Ultramsg:", data)
+    print("وصلت بيانات خام:", data) # هذا السطر سيظهر لنا في Logs ريندر فوراً
 
-    # Ultramsg ترسل البيانات داخل قائمة (List) في المفتاح 'data' أو بشكل مباشر
-    # هذا التعديل يضمن استخراج الرسالة مهما كان شكل وصولها
-    msg_data = data
-    if isinstance(data, dict) and 'data' in data:
-        msg_data = data['data']
-    
-    # استخراج النص ورقم المرسل
-    user_message = msg_data.get('body')
-    chat_id = msg_data.get('from')
+    # Ultramsg ترسل مصفوفة أحداث، نأخذ الحدث الأول
+    if isinstance(data, list):
+        event = data[0]
+    else:
+        event = data
+
+    user_message = event.get('body')
+    chat_id = event.get('from')
 
     if user_message and chat_id:
-        print(f"جاري المعالجة لـ {chat_id}: {user_message}")
-        
+        # إذا كانت الرسالة "صادرة" من البوت نفسه لا ترد عليها (لتجنب الحلقة المفرغة)
+        if event.get('sentId'): 
+            return "OK", 200
+            
+        print(f"جاري الرد على {chat_id}...")
+        # ... باقي كود Gemini والإرسال كما هو ...        
         # 1. إرسال لـ Gemini
         full_prompt = f"{COMPANY_DATA}\nالعميل: {user_message}\nالرد:"
         payload = {"contents": [{"parts": [{"text": full_prompt}]}]}
