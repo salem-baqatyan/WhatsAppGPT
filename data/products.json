@@ -1,0 +1,78 @@
+[
+  {
+    "model_name": "LT NOTE 30",
+    "price": "200,000 ريال يمني",
+    "cameras": {
+      "rear": "64MP + 2MP + 8MP + 2MP",
+      "front": "32MP"
+    },
+    "memory": {
+      "storage": "256GB",
+      "ram": "8GB"
+    },
+    "processor": "MTK G90T 2.0GHz",
+    "battery": "5000mAh",
+    "display": "6.81 انش",
+    "sim_slots": "نظامين (G+C) أو (G+G)",
+    "network": "يدعم 4G/3G/GSM/CDMA",
+    "os": "Android 11.0",
+    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/NOTE30.png"
+  },
+  {
+    "model_name": "LT NOTE 20S",
+    "price": "170,000 ريال يمني",
+    "cameras": {
+      "rear": "48MP + 2MP + 8MP + 2MP",
+      "front": "25MP"
+    },
+    "memory": {
+      "storage": "128GB",
+      "ram": "6GB"
+    },
+    "processor": "MediaTek Helio P70 2.0GHz",
+    "battery": "4500mAh",
+    "display": "6.56 انش",
+    "sim_slots": "CDMA-GSM أو GSM-GSM",
+    "network": "يدعم 4G/3G/GSM/CDMA",
+    "os": "Android 10 Q",
+    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/NOTE20s.png"
+  },
+  {
+    "model_name": "LT P20",
+    "price": "150,000 ريال يمني",
+    "cameras": {
+      "rear": "13MP + 5MP",
+      "front": "8MP"
+    },
+    "memory": {
+      "storage": "64GB",
+      "ram": "3GB"
+    },
+    "processor": "Qualcomm SDM439 1.95GHz",
+    "battery": "5500mAh",
+    "display": "6.217 انش",
+    "sim_slots": "GSM+CDMA أو GSM",
+    "network": "يدعم 4G/3G/GSM/CDMA",
+    "os": "Android 9 Pie",
+    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/P20.png"
+  },
+  {
+    "model_name": "LT P9i",
+    "price": "70,000 ريال يمني",
+    "cameras": {
+      "rear": "13MP",
+      "front": "5MP"
+    },
+    "memory": {
+      "storage": "32GB",
+      "ram": "2GB"
+    },
+    "processor": "Quad-core 2016 MHz",
+    "battery": "4000mAh",
+    "display": "5.46 انش",
+    "sim_slots": "GSM+CDMA أو GSM",
+    "network": "يدعم 4G/3G/GSM/CDMA",
+    "os": "Android 9 Pie",
+    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/P9i.png"
+  }
+]

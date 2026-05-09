@@ -1,0 +1,21 @@
+{
+  "company_name": "ال تي موبايل - LT Mobile",
+  "country": "اليمن",
+  "website": "https://lt-yemen.com/",
+  "social_media": {
+    "account_handle": "ltmobile.company",
+    "platforms": ["Facebook", "Twitter", "Instagram", "Messenger"]
+  },
+  "contact_numbers": {
+    "toll_free": "8001111",
+    "customer_support": "777477750"
+  },
+  "branches": [
+    "صنعاء",
+    "عدن",
+    "المكلا",
+    "الحديدة",
+    "سيئون",
+    "إب"
+  ]
+}
