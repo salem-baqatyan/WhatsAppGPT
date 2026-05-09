@@ -1,14 +1,15 @@
 import requests
 
-url = "http://127.0.0.1:5000/chat"
-payload = {"message": "السلام عليكم، ايش عندكم جوالات جديدة؟"}
+API_KEY = "AIzaSyB08cGSOO_2CUYLF0oN0voTv2KY5ZZ8mKc"
+url = f"https://generativelanguage.googleapis.com/v1beta/models?key={API_KEY}"
 
-try:
-    response = requests.post(url, json=payload)
-    if response.status_code == 200:
-        print("رد البوت الذكي:")
-        print(response.json().get('response'))
-    else:
-        print(f"خطأ من السيرفر: {response.text}")
-except Exception as e:
-    print(f"فشل الاتصال بالسيرفر: {e}")
+response = requests.get(url)
+models = response.json()
+
+if 'models' in models:
+    print("--- الموديلات المتاحة لحسابك هي: ---")
+    for m in models['models']:
+        print(m['name'])
+else:
+    print("فشل في جلب الموديلات، تأكد من المفتاح:")
+    print(models)
