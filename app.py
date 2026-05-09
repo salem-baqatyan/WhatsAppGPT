@@ -8,8 +8,8 @@ app = Flask(__name__)
 
 # --- الإعدادات ---
 # بيانات واتساب (مثال لمزود Green-API)
-ID_INSTANCE = "1101123456" 
-API_TOKEN_INSTANCE = "abc123token..."
+ID_INSTANCE = "7107612913" 
+API_TOKEN_INSTANCE = "36c970442a274b7e8299857895b9a7e6ab2755bde987498abd"
 WA_URL = f"https://api.green-api.com/waInstance{ID_INSTANCE}/sendMessage/{API_TOKEN_INSTANCE}"
 
 # مفاتيح Gemini (نفس ميزة التدوير التي صممناها)
