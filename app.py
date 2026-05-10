@@ -2,6 +2,7 @@ import logging
 import httpx
 import os
 import json
+import threading # أضفنا هذا لتسريع الاستجابة
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -19,6 +20,7 @@ API_KEYS = [
     "AIzaSyDRwTEOtxPP-gXNCHAPyuKbTOHHCV0-KUU"
 ]
 
+# دالة جلب البيانات (تبقيها كما هي)
 def load_data():
     data_path = "data/"
     content = ""
@@ -26,66 +28,51 @@ def load_data():
     for file_name in files:
         try:
             with open(os.path.join(data_path, file_name), 'r', encoding='utf-8') as f:
-                if file_name.endswith('.json'):
-                    content += json.dumps(json.load(f), ensure_ascii=False)
-                else:
-                    content += f.read()
+                content += json.dumps(json.load(f), ensure_ascii=False) if file_name.endswith('.json') else f.read()
         except: pass
     return content
 
 BASE_KNOWLEDGE = load_data()
 
 def get_gemini_response(user_msg):
-    """استخدام Client متزامن لتجنب مشاكل Flask async"""
     payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
     for key in API_KEYS:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         try:
-            # استخدام الحظر (Sync) بدلاً من Async
             with httpx.Client() as client:
-                res = client.post(url, json=payload, timeout=30.0)
+                res = client.post(url, json=payload, timeout=20.0) # تقليل التايم آوت لسرعة التبديل
                 if res.status_code == 200:
                     return res.json()["candidates"][0]["content"]["parts"][0]["text"]
         except: continue
-    return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
+    return "المعذرة، واجهت مشكلة تقنية."
+
+def process_and_reply(chat_id, user_text):
+    """هذه الدالة تعمل في الخلفية لعدم تعطيل الويب هوك"""
+    ai_answer = get_gemini_response(user_text)
+    try:
+        with httpx.Client() as client:
+            client.post(WA_URL, json={"chatId": chat_id, "message": ai_answer}, timeout=10.0)
+    except Exception as e:
+        print(f"Error sending reply: {e}")
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    # تسجيل البيانات القادمة للفحص (اختياري)
-    print(f"Incoming: {json.dumps(data)}") 
-
-    try:
-        # Green-API يرسل نوع الويب هوك في حقل typeWebhook
-        if data.get("typeWebhook") == "incomingMessageReceived":
+    # استلام الرسالة ومعالجتها في خيط (Thread) منفصل فوراً
+    if data.get("typeWebhook") == "incomingMessageReceived":
+        try:
             chat_id = data["senderData"]["chatId"]
-            
-            # التأكد من وجود نص في الرسالة
-            message_data = data.get("messageData", {})
-            user_text = ""
-            
-            if "textMessageData" in message_data:
-                user_text = message_data["textMessageData"].get("textMessage", "")
+            user_text = data.get("messageData", {}).get("textMessageData", {}).get("textMessage", "")
             
             if user_text:
-                # الحصول على الرد
-                ai_answer = get_gemini_response(user_text)
-                
-                # إرسال الرد عبر Green-API
-                with httpx.Client() as client:
-                    client.post(WA_URL, json={
-                        "chatId": chat_id,
-                        "message": ai_answer
-                    })
-    except Exception as e:
-        print(f"Error in Webhook: {e}")
+                # تشغيل المعالجة في الخلفية والرد على GREEN-API فوراً بـ 200
+                threading.Thread(target=process_and_reply, args=(chat_id, user_text)).start()
+        except: pass
     
-    return jsonify({"status": "success"}), 200
+    return jsonify({"status": "received"}), 200
 
 @app.route('/')
-def home():
-    return "WhatsApp Bot is Running!"
+def home(): return "OK", 200
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
