@@ -12,8 +12,8 @@ API_TOKEN_INSTANCE = "36c970442a274b7e8299857895b9a7e6ab2755bde987498abd"
 WA_URL = f"https://api.green-api.com/waInstance{ID_INSTANCE}/sendMessage/{API_TOKEN_INSTANCE}"
 
 API_KEYS = [
-    "AIzaSyBmrSrN9oQ-zkb1vHdyz2HfpNCIppo6nsM",
-    "AIzaSyACPCUdAxGvkJhA3LBGFHixWzduxY8cf88",
+    "AIzaSyC9_Fj3IWp9cJdhRqKUUccQK7QQz1VGhgc",
+    "AIzaSyC8DBpLcv408zfz3TmFDSTzoWcpSR8c6Dg",
     ]
 
 def load_data():
@@ -57,31 +57,31 @@ def get_gemini_response(user_msg):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    # تسجيل البيانات القادمة للفحص (اختياري)
-    print(f"Incoming: {json.dumps(data)}") 
-
     try:
-        # Green-API يرسل نوع الويب هوك في حقل typeWebhook
+        # 1. فلترة: لا تعالج إلا الرسائل النصية الواردة فقط
         if data.get("typeWebhook") == "incomingMessageReceived":
-            chat_id = data["senderData"]["chatId"]
-            
-            # التأكد من وجود نص في الرسالة
             message_data = data.get("messageData", {})
-            user_text = ""
             
-            if "textMessageData" in message_data:
+            # التأكد أن الرسالة نصية وليست حالة (Status) أو إشعار آخر
+            if message_data.get("typeMessage") == "textMessage":
+                chat_id = data["senderData"]["chatId"]
                 user_text = message_data["textMessageData"].get("textMessage", "")
-            
-            if user_text:
-                # الحصول على الرد
-                ai_answer = get_gemini_response(user_text)
-                
-                # إرسال الرد عبر Green-API
-                with httpx.Client() as client:
-                    client.post(WA_URL, json={
-                        "chatId": chat_id,
-                        "message": ai_answer
-                    })
+
+                if user_text:
+                    # الآن فقط نستهلك حصة Gemini
+                    ai_answer = get_gemini_response(user_text)
+                    
+                    with httpx.Client() as client:
+                        client.post(WA_URL, json={
+                            "chatId": chat_id,
+                            "message": ai_answer
+                        })
+        
+        # تجاهل أي نوع آخر من الـ Webhooks (مثل Status أو Outgoing)
+        else:
+            # print(f"Ignored Webhook Type: {data.get('typeWebhook')}")
+            pass
+
     except Exception as e:
         print(f"Error in Webhook: {e}")
     
