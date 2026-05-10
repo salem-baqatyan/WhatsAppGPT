@@ -33,17 +33,25 @@ def load_data():
 BASE_KNOWLEDGE = load_data()
 
 def get_gemini_response(user_msg):
-    """استخدام Client متزامن لتجنب مشاكل Flask async"""
     payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
-    for key in API_KEYS:
+    
+    for index, key in enumerate(API_KEYS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         try:
-            # استخدام الحظر (Sync) بدلاً من Async
             with httpx.Client() as client:
                 res = client.post(url, json=payload, timeout=30.0)
+                
                 if res.status_code == 200:
                     return res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except: continue
+                else:
+                    # هذا السطر سيطبع لك السبب الحقيقي في سجلات ريندر
+                    error_detail = res.json().get('error', {}).get('message', 'Unknown Error')
+                    print(f"⚠️ Key {index+1} Failed: {res.status_code} - {error_detail}")
+                    
+        except Exception as e:
+            print(f"❌ Connection Error with Key {index+1}: {e}")
+            continue
+            
     return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
 
 @app.route('/webhook', methods=['POST'])
