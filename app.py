@@ -14,10 +14,6 @@ WA_URL = f"https://api.green-api.com/waInstance{ID_INSTANCE}/sendMessage/{API_TO
 API_KEYS = [
     "AIzaSyBmrSrN9oQ-zkb1vHdyz2HfpNCIppo6nsM",
     "AIzaSyACPCUdAxGvkJhA3LBGFHixWzduxY8cf88",
-    
-    "AIzaSyA8n9sXo7l3m1v5Zt2eX9j6u8w4y7r3q5k",
-    "AIzaSyB9o5X7v2n4m8p1s6eX9j6u8w4y7r3q5k",
-    "AIzaSyC7p8X9o7l3m1v5Zt2eX9j6u8w4y7r3q5k",
     ]
 
 def load_data():
