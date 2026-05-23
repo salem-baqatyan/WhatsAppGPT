@@ -1,21 +1,20 @@
-import logging
-import httpx
 import os
 import json
+import logging
 from flask import Flask, request, jsonify
+import httpx
 
 app = Flask(__name__)
 
-# --- الإعدادات الجديدة لـ Meta ---
-ACCESS_TOKEN = "EAANzMXXnzN8BRcOpZCrpEk3acDYvlJbs9gnVx7YvDRXXttUxUgANBSnHJVEGOXHYxXwneytyR47Cq0Xa7HFxIEHdEsxp6bmbD2XDF51F2lY2NrjAXkmmFLy05jLTB7pUHvHDJ7XcTBuF5Pp2ptOPnzkAnvolpg7P9pm64QDOeo8B343iuUxQWa3caXKFKlkU0c6RiMtwJh9itlLdm7nwbfwEh6KeGL0DdqhuZARRGCElR2i5wIBzqP7xZBUJrDOPUJg5F3PogPOb4M6Lb4rZBFzVsAZDZD" # Access Token من صفحة Meta
-PHONE_NUMBER_ID = "1089127494288944" # معرف الرقم الذي حصلت عليه
-VERIFY_TOKEN = "salem_secret_123" # اختر أي كلمة سر وضعها في واجهة Meta
+# --- إعدادات WAHA ---
+WAHA_API_URL = "http://localhost:3000/api" 
+WAHA_SESSION = "default"  # اسم الجلسة الافتراضي في WAHA
+# تم جلب المفتاح المعتمد من ملف الـ .env الخاص بك
+WAHA_API_KEY = "389f56a2575f4eed9bc77fcb3531660f" 
 
-META_URL = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
-
+# --- إعدادات Gemini ---
 API_KEYS = [
-    "AIzaSyC9_Fj3IWp9cJdhRqKUUccQK7QQz1VGhgc",
-    "AIzaSyC8DBpLcv408zfz3TmFDSTzoWcpSR8c6Dg",
+    "AIzaSyDEAQyAKon7HKZn3F1wHdBx5i3KiNi3j4w",
 ]
 
 def load_data():
@@ -36,6 +35,7 @@ BASE_KNOWLEDGE = load_data()
 
 def get_gemini_response(user_msg):
     payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
+    
     for index, key in enumerate(API_KEYS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         try:
@@ -43,65 +43,74 @@ def get_gemini_response(user_msg):
                 res = client.post(url, json=payload, timeout=30.0)
                 if res.status_code == 200:
                     return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                else:
+                    print(f"⚠️ Gemini Key Failed: {res.status_code} - Response: {res.text}")
         except Exception as e:
-            print(f"❌ Gemini Error: {e}")
+            print(f"❌ Error with Gemini Key: {e}")
             continue
-    return "المعذرة، واجهت مشكلة تقنية."
+            
+    return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
 
-# --- التحقق من الـ Webhook (مهم لـ Meta) ---
-@app.route('/webhook', methods=['GET'])
-def verify_webhook():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
+# دالة لإرسال الرسائل عبر WAHA مع التوثيق الصحيح عبر X-Api-Key
+def send_waha_message(chat_id, text):
+    # الرابط الافتراضي الصحيح لـ WAHA الأساسي
+    url = f"{WAHA_API_URL}/sendText"    
     
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return challenge, 200
-    return "Forbidden", 403
+    payload = {
+        "chatId": chat_id,
+        "text": text,
+        "session": WAHA_SESSION
+    }
+    
+    # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
+    headers = {
+        "X-Api-Key": "389f56a2575f4eed9bc77fcb3531660f",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            res = client.post(url, json=payload, headers=headers, timeout=10.0)
+            if res.status_code in [200, 201]:
+                print(f"✅ ممتاز! تم إرسال الرد بنجاح إلى العميل: {chat_id}")
+                return True
+            else:
+                print(f"⚠️ WAHA رفض الإرسال. كود الحالة: {res.status_code}، الرد: {res.text}")
+                return False
+    except Exception as e:
+        print(f"❌ خطأ أثناء الإرسال عبر WAHA: {e}")
+        return False
 
-# --- معالجة الرسائل الواردة ---
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    try:
-        # استخراج الرسالة من هيكلة Meta
-        if "messages" in data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}):
-            message = data["entry"][0]["changes"][0]["value"]["messages"][0]
-            chat_id = message["from"]
+
+    if data and data.get("event") == "message":
+        payload = data.get("payload", {})
+        
+        if payload.get("fromMe") is True:
+            return "Ignored outward message", 200
             
-            if message.get("type") == "text":
-                user_text = message["text"]["body"]
-                ai_answer = get_gemini_response(user_text)
+        user_msg = payload.get("body", "")
+        chat_id = payload.get("from", "")
 
-                # إرسال الرد عبر Meta API
-                headers = {"Authorization": f"Bearer {ACCESS_TOKEN}", "Content-Type": "application/json"}
-                
-                # فحص إذا كان الرد رابط صورة
-                if "http" in ai_answer and any(ext in ai_answer for ext in [".jpg", ".png", ".jpeg"]):
-                    payload = {
-                        "messaging_product": "whatsapp",
-                        "to": chat_id,
-                        "type": "image",
-                        "image": {"link": ai_answer.strip(), "caption": "إليك الصورة المطلوبة"}
-                    }
-                else:
-                    payload = {
-                        "messaging_product": "whatsapp",
-                        "to": chat_id,
-                        "type": "text",
-                        "text": {"body": ai_answer}
-                    }
+        if user_msg and chat_id:
+            print(f"💬 رسالة واردة من {chat_id}: {user_msg}")
+            
+            # جلب رد الذكاء الاصطناعي
+            ai_answer = get_gemini_response(user_msg)
+            print(f"🤖 رد الذكاء الاصطناعي الجاهز: {ai_answer}")
+            
+            # إرسال الرد
+            send_waha_message(chat_id, ai_answer)
+            
+            return "OK", 200
 
-                with httpx.Client() as client:
-                    client.post(META_URL, headers=headers, json=payload)
-
-    except Exception as e:
-        print(f"Error: {e}")
-    
-    return jsonify({"status": "success"}), 200
+    return "Ignored event", 200
 
 @app.route('/')
-def home(): return "Meta WhatsApp Bot is Running!"
+def home():
+    return "WAHA AI Bot is Running!"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
