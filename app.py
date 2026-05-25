@@ -16,6 +16,7 @@ API_KEYS = [
     "AIzaSyDEAQyAKon7HKZn3F1wHdBx5i3KiNi3j4w",
 ]
 
+# --- تحميل قاعدة البيانات مرة واحدة فقط عند تشغيل السيرفر لتسريع الاستجابة ---
 def load_data():
     data_path = "data/"
     content = ""
@@ -30,6 +31,7 @@ def load_data():
         except: pass
     return content
 
+# نقوم بتعريف المتغير هنا ليتم تحميله في الذاكرة (RAM) مباشرة عند تشغيل السيرفر
 BASE_KNOWLEDGE = load_data()
 
 def get_gemini_response(user_msg):
