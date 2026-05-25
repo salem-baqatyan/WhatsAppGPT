@@ -6,12 +6,11 @@ import httpx
 
 app = Flask(__name__)
 
-# --- إعدادات WAHA ---
-WAHA_API_URL = "http://localhost:3000/api" 
+# --- إعدادات WAHA السحابية الجديدة ---
+# تم تعديل الرابط ليتصل بـ Hugging Face مباشرة بدلاً من السيرفر المحلي
+WAHA_API_URL = "https://salem775-waha-server.hf.space/api" 
 WAHA_SESSION = "default"  # اسم الجلسة الافتراضي في WAHA
-# تم جلب المفتاح المعتمد من ملف الـ .env الخاص بك
-WAHA_API_KEY = "389f56a2575f4eed9bc77fcb3531660f" 
-
+WAHA_API_KEY = "389f56a2575f4eed9bc77fcb3531660f"
 # --- إعدادات Gemini ---
 API_KEYS = [
     "AIzaSyDEAQyAKon7HKZn3F1wHdBx5i3KiNi3j4w",
@@ -82,7 +81,7 @@ def send_waha_message(chat_id, text):
         return False
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
+async def webhook(): # إضافة async هنا
     data = request.json
 
     if data and data.get("event") == "message":
