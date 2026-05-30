@@ -1,78 +1,53 @@
 [
   {
-    "model_name": "LT NOTE 30",
-    "price": "200,000 ريال يمني",
-    "cameras": {
-      "rear": "64MP + 2MP + 8MP + 2MP",
-      "front": "32MP"
+    "plan_id": "standard",
+    "plan_name": "الباقة العادية",
+    "availability": "متوفرة حالياً للاشتراك",
+    "price": {
+      "amount": 30,
+      "currency": "USD",
+      "billing_cycle": "شهري",
+      "display": "30 دولار شهرياً"
     },
-    "memory": {
-      "storage": "256GB",
-      "ram": "8GB"
-    },
-    "processor": "MTK G90T 2.0GHz",
-    "battery": "5000mAh",
-    "display": "6.81 انش",
-    "sim_slots": "نظامين (G+C) أو (G+G)",
-    "network": "يدعم 4G/3G/GSM/CDMA",
-    "os": "Android 11.0",
-    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/NOTE30.png"
+    "features": [
+      "الرد على رسائل العملاء",
+      "فهم سياق المحادثة",
+      "حفظ آخر 5 رسائل للعميل",
+      "العمل 24/7"
+    ],
+    "best_for": [
+      "المتاجر التي تستقبل استفسارات متكررة عبر واتساب",
+      "الشركات الصغيرة والمتوسطة",
+      "مقدمو الخدمات الذين يريدون تحسين سرعة الرد"
+    ],
+    "sales_message": "الباقة العادية مناسبة إذا كنت تريد مساعداً يرد على عملائك عبر واتساب طوال اليوم، يفهم سياق المحادثة، ويخفف الضغط على فريقك بسعر 30 دولار شهرياً.",
+    "subscription_note": "بعد التفعيل، الاشتراك الشهري غير قابل للاسترجاع أو الإلغاء لأن تكاليف التشغيل والبنية السحابية يتم دفعها مسبقاً."
   },
   {
-    "model_name": "LT NOTE 20S",
-    "price": "170,000 ريال يمني",
-    "cameras": {
-      "rear": "48MP + 2MP + 8MP + 2MP",
-      "front": "25MP"
-    },
-    "memory": {
-      "storage": "128GB",
-      "ram": "6GB"
-    },
-    "processor": "MediaTek Helio P70 2.0GHz",
-    "battery": "4500mAh",
-    "display": "6.56 انش",
-    "sim_slots": "CDMA-GSM أو GSM-GSM",
-    "network": "يدعم 4G/3G/GSM/CDMA",
-    "os": "Android 10 Q",
-    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/NOTE20s.png"
+    "plan_id": "medium",
+    "plan_name": "الباقة المتوسطة",
+    "availability": "قريباً - قيد التطوير",
+    "price": null,
+    "features": [
+      "جميع مميزات الباقة العادية",
+      "إرسال صور المنتجات للعملاء"
+    ],
+    "sales_message": "الباقة المتوسطة قيد التطوير حالياً، وستضيف إمكانية إرسال صور المنتجات للعملاء إلى مميزات الباقة العادية.",
+    "subscription_note": "ليست متاحة للاشتراك حالياً، ولا يوجد سعر معلن لها."
   },
   {
-    "model_name": "LT P20",
-    "price": "150,000 ريال يمني",
-    "cameras": {
-      "rear": "13MP + 5MP",
-      "front": "8MP"
-    },
-    "memory": {
-      "storage": "64GB",
-      "ram": "3GB"
-    },
-    "processor": "Qualcomm SDM439 1.95GHz",
-    "battery": "5500mAh",
-    "display": "6.217 انش",
-    "sim_slots": "GSM+CDMA أو GSM",
-    "network": "يدعم 4G/3G/GSM/CDMA",
-    "os": "Android 9 Pie",
-    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/P20.png"
-  },
-  {
-    "model_name": "LT P9i",
-    "price": "70,000 ريال يمني",
-    "cameras": {
-      "rear": "13MP",
-      "front": "5MP"
-    },
-    "memory": {
-      "storage": "32GB",
-      "ram": "2GB"
-    },
-    "processor": "Quad-core 2016 MHz",
-    "battery": "4000mAh",
-    "display": "5.46 انش",
-    "sim_slots": "GSM+CDMA أو GSM",
-    "network": "يدعم 4G/3G/GSM/CDMA",
-    "os": "Android 9 Pie",
-    "image_url": "https://i0.wp.com/lt-yemen.com/wp-content/uploads/2021/10/P9i.png"
+    "plan_id": "advanced",
+    "plan_name": "الباقة المتقدمة",
+    "availability": "قريباً - قيد التطوير",
+    "price": null,
+    "features": [
+      "جميع مميزات الباقة المتوسطة",
+      "تقارير يومية",
+      "تقارير شهرية",
+      "تقارير سنوية",
+      "سجل وتحليل أسئلة العملاء"
+    ],
+    "sales_message": "الباقة المتقدمة قيد التطوير حالياً، وهدفها إضافة تقارير دورية وتحليل لأسئلة العملاء عند توفرها.",
+    "subscription_note": "ليست متاحة للاشتراك حالياً، ولا يوجد سعر معلن لها."
   }
 ]
