@@ -3,17 +3,21 @@ import json
 import logging
 from flask import Flask, request, jsonify
 import httpx
+import threading
+import time
 
 app = Flask(__name__)
 
 # --- إعدادات WAHA السحابية الجديدة ---
-# تم تعديل الرابط ليتصل بـ Hugging Face مباشرة بدلاً من السيرفر المحلي
 WAHA_API_URL = "https://salem775-waha-server.hf.space/api" 
-WAHA_SESSION = "default"  # اسم الجلسة الافتراضي في WAHA
+WAHA_SESSION = "default"  
 WAHA_API_KEY = "389f56a2575f4eed9bc77fcb3531660f"
-# --- إعدادات Gemini ---
+
+# --- إعدادات Gemini (يمكنك إضافة مصفوفة مفاتيحك التجريبية هنا) ---
 API_KEYS = [
     "AIzaSyDEAQyAKon7HKZn3F1wHdBx5i3KiNi3j4w",
+    # "ضع_المفتاح_التجريبي_الثاني_هنا",
+    # "ضع_المفتاح_التجريبي_الثالث_هنا",
 ]
 
 # --- تحميل قاعدة البيانات مرة واحدة فقط عند تشغيل السيرفر لتسريع الاستجابة ---
@@ -31,12 +35,12 @@ def load_data():
         except: pass
     return content
 
-# نقوم بتعريف المتغير هنا ليتم تحميله في الذاكرة (RAM) مباشرة عند تشغيل السيرفر
 BASE_KNOWLEDGE = load_data()
 
 def get_gemini_response(user_msg):
     payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
     
+    # المرور على المفاتيح بالتناوب في حال فشل أحدها أو وصل للحد الأقصى
     for index, key in enumerate(API_KEYS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         try:
@@ -45,30 +49,27 @@ def get_gemini_response(user_msg):
                 if res.status_code == 200:
                     return res.json()["candidates"][0]["content"]["parts"][0]["text"]
                 else:
-                    print(f"⚠️ Gemini Key Failed: {res.status_code} - Response: {res.text}")
+                    # إذا قوقل أرجعت خطأ 429 (ضغط) أو أي خطأ آخر، سيتم الانتقال تلقائياً للمفتاح التالي
+                    print(f"⚠️ Gemini Key {index} Failed: {res.status_code}. Trying next key...")
+                    continue
         except Exception as e:
-            print(f"❌ Error with Gemini Key: {e}")
+            print(f"❌ Error with Gemini Key {index}: {e}")
             continue
             
-    return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
+    return "المعذرة، واجهت مشكلة تقنية مؤقتة لكثرة الطلبات. يرجى المحاولة بعد قليل."
 
-# دالة لإرسال الرسائل عبر WAHA مع التوثيق الصحيح عبر X-Api-Key
+# دالة لإرسال الرسائل عبر WAHA
 def send_waha_message(chat_id, text):
-    # الرابط الافتراضي الصحيح لـ WAHA الأساسي
     url = f"{WAHA_API_URL}/sendText"    
-    
     payload = {
         "chatId": chat_id,
         "text": text,
         "session": WAHA_SESSION
     }
-    
-    # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
     headers = {
-        "X-Api-Key": "389f56a2575f4eed9bc77fcb3531660f",
+        "X-Api-Key": WAHA_API_KEY,
         "Content-Type": "application/json"
     }
-    
     try:
         with httpx.Client() as client:
             res = client.post(url, json=payload, headers=headers, timeout=10.0)
@@ -83,7 +84,7 @@ def send_waha_message(chat_id, text):
         return False
 
 @app.route('/webhook', methods=['POST'])
-async def webhook(): # إضافة async هنا
+def webhook(): 
     data = request.json
 
     if data and data.get("event") == "message":
@@ -98,11 +99,9 @@ async def webhook(): # إضافة async هنا
         if user_msg and chat_id:
             print(f"💬 رسالة واردة من {chat_id}: {user_msg}")
             
-            # جلب رد الذكاء الاصطناعي
             ai_answer = get_gemini_response(user_msg)
             print(f"🤖 رد الذكاء الاصطناعي الجاهز: {ai_answer}")
             
-            # إرسال الرد
             send_waha_message(chat_id, ai_answer)
             
             return "OK", 200
@@ -111,8 +110,27 @@ async def webhook(): # إضافة async هنا
 
 @app.route('/')
 def home():
-    return "WAHA AI Bot is Running!"
+    return "WAHA AI Bot is Running 24/7!"
+
+# --- وظيفة منع النوم الذاتية (Keep Alive) ---
+def keep_alive():
+    # ننتظر 20 ثانية حتى يتأكد تشغيل السيرفر بالكامل أول مرة
+    time.sleep(20)
+    while True:
+        try:
+            # السيرفر ينادي رابط الهوم الخاص به ورابط سيرفر WAHA ليمنعهما من النوم
+            with httpx.Client() as client:
+                client.get("https://whatsappgpt-2dk9.onrender.com/", timeout=10.0)
+                client.get("https://salem775-waha-server.hf.space/", timeout=10.0)
+            print("⏰ [Ping] تم إنعاش السيرفرات بنجاح لضمان استمرار العمل 24 ساعة.")
+        except Exception as e:
+            print(f"⚠️ [Ping Error]: {e}")
+        # تكرار العملية كل 10 دقائق (600 ثانية)
+        time.sleep(600)
 
 if __name__ == '__main__':
+    # تشغيل نظام منع النوم في خلفية السيرفر (Thread منفصل) دون التأثير على استقبال الرسائل
+    threading.Thread(target=keep_alive, daemon=True).start()
+    
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
