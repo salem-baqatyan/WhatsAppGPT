@@ -3,11 +3,11 @@ import json
 import logging
 from flask import Flask, request, jsonify
 import httpx
-import asyncio
 
 app = Flask(__name__)
 
 # --- إعدادات WAHA السحابية الجديدة ---
+# تم تعديل الرابط ليتصل بـ Hugging Face مباشرة بدلاً من السيرفر المحلي
 WAHA_API_URL = "https://salem775-waha-server.hf.space/api" 
 WAHA_SESSION = "default"  
 WAHA_API_KEY = "c9aafb85e61b461ca721235673559c04"
@@ -32,62 +32,59 @@ def load_data():
         except: pass
     return content
 
+# نقوم بتعريف المتغير هنا ليتم تحميله في الذاكرة (RAM) مباشرة عند تشغيل السيرفر
 BASE_KNOWLEDGE = load_data()
 
-# دالة غير متزامنة لجلب رد Gemini دون تعطيل السيرفر
-async def get_gemini_response_async(user_msg):
+def get_gemini_response(user_msg):
     payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
     
     for index, key in enumerate(API_KEYS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         try:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(url, json=payload, timeout=30.0)
+            with httpx.Client() as client:
+                res = client.post(url, json=payload, timeout=30.0)
                 if res.status_code == 200:
                     return res.json()["candidates"][0]["content"]["parts"][0]["text"]
                 else:
-                    print(f"⚠️ Gemini Key {index} Failed: {res.status_code}.")
-                    continue
+                    print(f"⚠️ Gemini Key Failed: {res.status_code} - Response: {res.text}")
         except Exception as e:
-            print(f"❌ Error with Gemini Key {index}: {e}")
+            print(f"❌ Error with Gemini Key: {e}")
             continue
             
-    return "المعذرة، واجهت مشكلة تقنية مؤقتة لكثرة الطلبات. يرجى المحاولة بعد قليل."
+    return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
 
-# دالة غير متزامنة لإرسال الرسائل عبر WAHA
-async def send_waha_message_async(chat_id, text):
+# دالة لإرسال الرسائل عبر WAHA مع التوثيق الصحيح عبر X-Api-Key
+def send_waha_message(chat_id, text):
+    # الرابط الافتراضي الصحيح لـ WAHA الأساسي
     url = f"{WAHA_API_URL}/sendText"    
+    
     payload = {
         "chatId": chat_id,
         "text": text,
         "session": WAHA_SESSION
     }
+    
+    # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
     headers = {
-        "X-Api-Key": WAHA_API_KEY,
+        "X-Api-Key": "389f56a2575f4eed9bc77fcb3531660f",
         "Content-Type": "application/json"
     }
+    
     try:
-        async with httpx.AsyncClient() as client:
-            res = await client.post(url, json=payload, headers=headers, timeout=10.0)
+        with httpx.Client() as client:
+            res = client.post(url, json=payload, headers=headers, timeout=10.0)
             if res.status_code in [200, 201]:
                 print(f"✅ ممتاز! تم إرسال الرد بنجاح إلى العميل: {chat_id}")
                 return True
             else:
-                print(f"⚠️ WAHA رفض الإرسال. كود الحالة: {res.status_code}")
+                print(f"⚠️ WAHA رفض الإرسال. كود الحالة: {res.status_code}، الرد: {res.text}")
                 return False
     except Exception as e:
         print(f"❌ خطأ أثناء الإرسال عبر WAHA: {e}")
         return False
 
-# دالة وسيطة لمعالجة مهمة الذكاء الاصطناعي والإرسال في الخلفية منفصلة تماماً
-async def process_bot_reply(chat_id, user_msg):
-    print(f"💬 بدأت معالجة رسالة العميل {chat_id}: {user_msg}")
-    ai_answer = await get_gemini_response_async(user_msg)
-    print(f"🤖 رد الذكاء الاصطناعي الجاهز: {ai_answer}")
-    await send_waha_message_async(chat_id, ai_answer)
-
 @app.route('/webhook', methods=['POST'])
-def webhook(): 
+async def webhook(): # إضافة async هنا
     data = request.json
 
     if data and data.get("event") == "message":
@@ -100,23 +97,22 @@ def webhook():
         chat_id = payload.get("from", "")
 
         if user_msg and chat_id:
-            # هنا السحر: نطلق دالة المعالجة في الخلفية عبر حلقة الأحداث (Event Loop) دون جعل WAHA ينتظر ثانية واحدة!
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-            loop.create_task(process_bot_reply(chat_id, user_msg))
+            print(f"💬 رسالة واردة من {chat_id}: {user_msg}")
             
-            # نرد فوراً بـ OK لـ WAHA لإبقاء الاتصال مستقراً وخفيفاً
+            # جلب رد الذكاء الاصطناعي
+            ai_answer = get_gemini_response(user_msg)
+            print(f"🤖 رد الذكاء الاصطناعي الجاهز: {ai_answer}")
+            
+            # إرسال الرد
+            send_waha_message(chat_id, ai_answer)
+            
             return "OK", 200
 
     return "Ignored event", 200
 
 @app.route('/')
 def home():
-    return "WAHA AI Bot is Running 24/7!"
+    return "WAHA AI Bot is Running!"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
