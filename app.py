@@ -66,7 +66,7 @@ def send_waha_message(chat_id, text):
     
     # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
     headers = {
-        "X-Api-Key": "389f56a2575f4eed9bc77fcb3531660f",
+        "X-Api-Key": "c9aafb85e61b461ca721235673559c04",
         "Content-Type": "application/json"
     }
     
