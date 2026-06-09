@@ -6,37 +6,51 @@ import httpx
 
 app = Flask(__name__)
 
-# --- إعدادات WAHA السحابية الجديدة ---
-# تم تعديل الرابط ليتصل بـ Hugging Face مباشرة بدلاً من السيرفر المحلي
-WAHA_API_URL = "https://salem775-waha-server.hf.space/api" 
-WAHA_SESSION = "default"  
-WAHA_API_KEY = "c9aafb85e61b461ca721235673559c04"
+# --- إعدادات سياق السيرفر المحلي ---
+WAHA_API_URL = "http://localhost:3000/api" 
+# لم نعد بحاجة لتثبيت SESSION واحدة في الأعلى لأنها ستأتي ديناميكياً من الـ Webhook
 
 # --- إعدادات Gemini ---
 API_KEYS = [
-    "AIzaSyDEAQyAKon7HKZn3F1wHdBx5i3KiNi3j4w",
+    "AQ.Ab8RN6JZLzMbITgh3_CvDdKr0opJI_sc4ylMed70YEqJIe8YFg",
 ]
 
-# --- تحميل قاعدة البيانات مرة واحدة فقط عند تشغيل السيرفر لتسريع الاستجابة ---
-def load_data():
-    data_path = "data/"
+# دالة مطورة لقراءة بيانات الشركة ديناميكياً بناءً على اسم الجلسة
+def load_company_data(session_name):
+    data_path = os.path.join("companies", session_name)
+
+    if not os.path.exists(data_path):
+        print(f"⚠️ المجلد {session_name} غير موجود")
+        return ""
+
     content = ""
-    files = ['faq.md', 'policies.md', 'prompt.txt', 'company.json', 'products.json', 'services.json']
-    for file_name in files:
+
+    for file_name in os.listdir(data_path):
+        file_path = os.path.join(data_path, file_name)
+
+        # تجاهل المجلدات الفرعية
+        if not os.path.isfile(file_path):
+            continue
+
         try:
-            with open(os.path.join(data_path, file_name), 'r', encoding='utf-8') as f:
-                if file_name.endswith('.json'):
-                    content += json.dumps(json.load(f), ensure_ascii=False)
-                else:
-                    content += f.read()
-        except: pass
+            if file_name.endswith(".json"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content += "\n\n" + json.dumps(
+                        json.load(f),
+                        ensure_ascii=False,
+                        indent=2
+                    )
+
+            else:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content += "\n\n" + f.read()
+
+        except Exception as e:
+            print(f"⚠️ فشل قراءة {file_name}: {e}")
+
     return content
-
-# نقوم بتعريف المتغير هنا ليتم تحميله في الذاكرة (RAM) مباشرة عند تشغيل السيرفر
-BASE_KNOWLEDGE = load_data()
-
-def get_gemini_response(user_msg):
-    payload = {"contents": [{"parts": [{"text": f"{BASE_KNOWLEDGE}\n\nسؤال الزبون: {user_msg}"}]}]}
+def get_gemini_response(user_msg, base_knowledge):
+    payload = {"contents": [{"parts": [{"text": f"{base_knowledge}\n\nسؤال الزبون: {user_msg}"}]}]}
     
     for index, key in enumerate(API_KEYS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
@@ -53,20 +67,18 @@ def get_gemini_response(user_msg):
             
     return "المعذرة، واجهت مشكلة تقنية. جرب لاحقاً."
 
-# دالة لإرسال الرسائل عبر WAHA مع التوثيق الصحيح عبر X-Api-Key
-def send_waha_message(chat_id, text):
-    # الرابط الافتراضي الصحيح لـ WAHA الأساسي
+# دالة الإرسال مع تمرير اسم الجلسة الصحيحة ديناميكياً لـ WAHA
+def send_waha_message(session_name, chat_id, text):
     url = f"{WAHA_API_URL}/sendText"    
     
     payload = {
         "chatId": chat_id,
         "text": text,
-        "session": WAHA_SESSION
+        "session": session_name # إرسال الرد عبر نفس الجلسة التي استقبلت الرسالة
     }
     
-    # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
     headers = {
-        "X-Api-Key": "c9aafb85e61b461ca721235673559c04",
+        "X-Api-Key": "d7ed3708aca64d96af708da7db06d5c9",
         "Content-Type": "application/json"
     }
     
@@ -74,17 +86,17 @@ def send_waha_message(chat_id, text):
         with httpx.Client() as client:
             res = client.post(url, json=payload, headers=headers, timeout=10.0)
             if res.status_code in [200, 201]:
-                print(f"✅ ممتاز! تم إرسال الرد بنجاح إلى العميل: {chat_id}")
+                print(f"✅ [{session_name}] تم إرسال الرد بنجاح إلى: {chat_id}")
                 return True
             else:
-                print(f"⚠️ WAHA رفض الإرسال. كود الحالة: {res.status_code}، الرد: {res.text}")
+                print(f"⚠️ [{session_name}] WAHA رفض الإرسال. كود الحالة: {res.status_code}")
                 return False
     except Exception as e:
-        print(f"❌ خطأ أثناء الإرسال عبر WAHA: {e}")
+        print(f"❌ خطأ أثناء الإرسال عبر WAHA للجلسة {session_name}: {e}")
         return False
-
+            
 @app.route('/webhook', methods=['POST'])
-async def webhook(): # إضافة async هنا
+def webhook():
     data = request.json
 
     if data and data.get("event") == "message":
@@ -95,16 +107,22 @@ async def webhook(): # إضافة async هنا
             
         user_msg = payload.get("body", "")
         chat_id = payload.get("from", "")
+        
+        # استخراج اسم الجلسة ديناميكياً من بيانات الويب هوك المرسلة من WAHA
+        session_name = data.get("session", "default")
 
         if user_msg and chat_id:
-            print(f"💬 رسالة واردة من {chat_id}: {user_msg}")
+            print(f"💬 [{session_name}] رسالة واردة من {chat_id}: {user_msg}")
             
-            # جلب رد الذكاء الاصطناعي
-            ai_answer = get_gemini_response(user_msg)
-            print(f"🤖 رد الذكاء الاصطناعي الجاهز: {ai_answer}")
+            # 1. تحميل المعرفة الخاصة بهذه الشركة تحديداً في هذه اللحظة
+            company_knowledge = load_company_data(session_name)
             
-            # إرسال الرد
-            send_waha_message(chat_id, ai_answer)
+            # 2. توليد الرد بناءً على معرفة الشركة المستهدفة
+            ai_answer = get_gemini_response(user_msg, company_knowledge)
+            print(f"🤖 [{session_name}] رد الذكاء الاصطناعي الجاهز: {ai_answer}")
+            
+            # 3. إرسال الرد عبر الجلسة الصحيحة
+            send_waha_message(session_name, chat_id, ai_answer)
             
             return "OK", 200
 
@@ -112,7 +130,7 @@ async def webhook(): # إضافة async هنا
 
 @app.route('/')
 def home():
-    return "WAHA AI Bot is Running!"
+    return "Multi-Tenant WAHA AI Bot is Running Locally!"
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
