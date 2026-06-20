@@ -1,0 +1,9 @@
+{
+  "company_name": "lt_mobile",
+  "waha_port": 3001,
+  "gemini_keys": [
+    "AQ.Ab8RN6JZLzMbITgh3_CvDdKr0opJI_sc4ylMed70YEqJIe8YFg"
+  ],
+  "model": "gemini-2.5-flash",
+  "temperature": 0.5
+}
