@@ -12,7 +12,7 @@ WAHA_SESSION = "default"  # اسم الجلسة الافتراضي في WAHA
 
 # --- إعدادات Gemini ---
 API_KEYS = [
-    "AQ.Ab8RN6JZLzMbITgh3_CvDdKr0opJI_sc4ylMed70YEqJIe8YFg",
+    "AQ.Ab8RN6KAfL6Qtf7VanLhSlkv78WRiCjHDuBR6itXVSIXlwSA1w",
 ]
 
 def load_data():
@@ -62,7 +62,7 @@ def send_waha_message(chat_id, text):
     
     # التوثيق الصارم الذي يطلبه سيرفر WAHA Core لتجنب الـ 401
     headers = {
-        "X-Api-Key": "71d5fa72b0304c17a7197316d4ee1e36",
+        "X-Api-Key": "dfe525d2894d40de971fdfe6b0b9adb2",
         "Content-Type": "application/json"
     }
     
