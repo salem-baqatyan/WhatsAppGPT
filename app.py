@@ -198,14 +198,24 @@ def get_intelligent_response(user_msg, base_knowledge, config):
     return "المعذرة، واجهت مشكلة تقنية مؤقتة، يرجى المحاولة لاحقاً."
 
 # ----------------------------
-# 5. دالة إرسال الرسائل عبر WAHA السحابية
+# 5. دالة إرسال الرسائل عبر WAHA السحابية (المحدثة لمتغيرات البيئة الديناميكية)
 # ----------------------------
 def send_waha_message(waha_port, session_name, chat_id, text, company_name):
     config = load_company_config(company_name)
-    waha_url_config = config.get("waha_url")
     
-    # الاعتماد الكلي على الرابط السحابي للشركة (Serveo URL)، والعودة للمحلي كخيار احتياطي فقط
+    # 1. أولاً: نحاول قراءة الرابط من متغيرات البيئة في Render (بتحويل اسم الشركة لأحرف كبيرة)
+    # مثلاً لو الشركة saas_bot سيبحث عن متغير باسم: WAHA_URL_SAAS_BOT
+    env_var_name = f"WAHA_URL_{company_name.upper()}"
+    waha_url_config = os.environ.get(env_var_name)
+    
+    # 2. ثانياً: إذا لم نجد متغير بيئة، نأخذ الرابط من ملف config.json الخاص بالشركة
+    if not waha_url_config:
+        waha_url_config = config.get("waha_url")
+    
+    # بناء الرابط النهائي للإرسال
     if waha_url_config:
+        # إزالة السلاش المائل الأخير إن وجد لضمان عدم تكراره في الرابط
+        waha_url_config = waha_url_config.rstrip('/')
         url = f"{waha_url_config}/api/sendText"
     else:
         url = f"{WAHA_BASE_HOST}:{waha_port}/api/sendText"
@@ -222,11 +232,10 @@ def send_waha_message(waha_port, session_name, chat_id, text, company_name):
     }
     
     try:
-        # استخدام trust_env=False لتخطي أي قيود شبكة محلية في بيئة الإنتاج
         with httpx.Client(trust_env=False) as client:
             res = client.post(url, json=payload, headers=headers, timeout=15.0)
             if res.status_code in [200, 201]:
-                logging.info(f"✅ [{company_name}] تم إرسال الرد بنجاح للعميل {chat_id}")
+                logging.info(f"✅ [{company_name}] تم إرسال الرد بنجاح للعميل {chat_id} عبر {url}")
                 return True
             logging.error(f"⚠️ [{company_name}] WAHA رفض الإرسال بكود: {res.status_code}")
             return False
