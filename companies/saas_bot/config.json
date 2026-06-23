@@ -9,6 +9,7 @@
     "AQ.Ab8RN6IsAuiqYtiPoBHd0v-GSFSzq7DX2qNlkLa0JejkwYak4w"
   ],
   "openrouter_api_key": "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",
-  "model": "gpt-4o-mini",
+  "model": "gemini-2.5-flash",
+  "openrouter_model": "gpt-4o-mini",  
   "temperature": 0.7
 }
