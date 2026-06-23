@@ -11,30 +11,27 @@ app = Flask(__name__)
 # --- إعداد الـ Logging الاحترافي لمراقبة السيرفر ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s')
 
-# تحديد المجلد الرئيسي للمشروع بشكل مطلق لضمان قراءة المجلدات على لينكس (Render)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# قراءة الإعدادات من متغيرات البيئة في Render مع وجود قيم احتياطية
-WAHA_BASE_HOST = os.environ.get("WAHA_BASE_HOST", "http://localhost")
-WAHA_API_KEY = os.environ.get("WAHA_API_KEY", "dfe525d2894d40de971fdfe6b0b9adb2")
+WAHA_BASE_HOST = "http://localhost"
+WAHA_API_KEY = "dfe525d2894d40de971fdfe6b0b9adb2"  # تم تأجيلها بناءً على طلبك لوقت الرفع
 
 # حد أقصى لحجم ملفات المعرفة لكل شركة لتجنب انفجار الذاكرة (500 كيلوبايت)
 MAX_KNOWLEDGE_SIZE_BYTES = 500 * 1024 
 
 # ----------------------------
-# 1. إضافة Cache للـ config
+# 1. إضافة Cache للـ config (التحسين #1)
+# لقراءة الإعدادات بسرعة من الذاكرة وتحديثها تلقائياً كل 60 ثانية
 # ----------------------------
 _config_cache = {}
 
 def load_company_config(company_name):
     current_time = time.time()
+    # إذا كانت الإعدادات موجودة في الكاش ولم تمر عليها دقيقة، نرجعها فوراً
     if company_name in _config_cache:
         cached_data, timestamp = _config_cache[company_name]
         if current_time - timestamp < 60:  # صلاحية الكاش 60 ثانية
             return cached_data
 
-    # استخدام BASE_DIR لضمان المسار المطلق الصحيح سحابياً
-    config_path = os.path.join(BASE_DIR, "companies", company_name, "config.json")
+    config_path = os.path.join("companies", company_name, "config.json")
     config_data = {
         "company_name": company_name,
         "waha_port": 3000,
@@ -42,7 +39,7 @@ def load_company_config(company_name):
         "gemini_keys": [],
         "openrouter_api_key": "",
         "model": "gemini-2.5-flash",
-        "openrouter_model": "google/gemini-2.5-flash",
+        "openrouter_model": "google/gemini-2.5-flash", # معالجة ذكية لموديل OpenRouter
         "temperature": 0.7
     }
 
@@ -51,19 +48,21 @@ def load_company_config(company_name):
             with open(config_path, "r", encoding="utf-8") as f:
                 loaded_config = json.load(f)
                 config_data.update(loaded_config)
+                # ضمان وجود مفتاح موديل أوبر تروتر احتياطاً
                 if "openrouter_model" not in config_data:
                     config_data["openrouter_model"] = f"google/{config_data['model']}" if "/" not in config_data['model'] else config_data['model']
     except Exception as e:
         logging.error(f"❌ فشل قراءة config.json للشركة {company_name}: {e}")
     
+    # حفظ في الكاش مع التوقيت الحالي
     _config_cache[company_name] = (config_data, current_time)
     return config_data
 
 # ----------------------------
-# 2. دالة قراءة قاعدة المعرفة مع الفلترة وحماية الذاكرة
+# 2. دالة قراءة قاعدة المعرفة مع الفلترة وحماية الذاكرة (المشكلة #3 و #4)
 # ----------------------------
 def load_company_knowledge(company_name):
-    data_path = os.path.join(BASE_DIR, "companies", company_name)
+    data_path = os.path.join("companies", company_name)
     if not os.path.exists(data_path):
         logging.warning(f"⚠️ المجلد المخصص للشركة [{company_name}] غير موجود.")
         return ""
@@ -74,6 +73,7 @@ def load_company_knowledge(company_name):
 
     try:
         for file_name in os.listdir(data_path):
+            # استثناء المجلدات، ملف الإعدادات، والملفات غير المدعومة
             if file_name == "config.json" or not file_name.endswith(allowed_extensions):
                 continue
                 
@@ -81,9 +81,10 @@ def load_company_knowledge(company_name):
             if not os.path.isfile(file_path):
                 continue
 
+            # فحص حجم الملف قبل قراءته لحماية الـ RAM من الانفجار
             file_size = os.path.getsize(file_path)
             if total_size + file_size > MAX_KNOWLEDGE_SIZE_BYTES:
-                logging.warning(f"⚠️ تجاوزت شركة [{company_name}] الحد الأقصى المسموح به لقاعدة المعرفة.")
+                logging.warning(f"⚠️ تجاوزت شركة [{company_name}] الحد الأقصى المسموح به لقاعدة المعرفة. تم إيقاف القراءة لحماية السيرفر.")
                 break
 
             total_size += file_size
@@ -105,48 +106,48 @@ def load_company_knowledge(company_name):
     return content
 
 # ----------------------------
-# 3. دالة جلب الاستجابة من OpenAI مباشرة (تعديل طوارئ مستقر)
+# 3. دالة جلب الاستجابة من OpenRouter (المشكلة #5 مصلحة عبر الـ config)
 # ----------------------------
 def get_openrouter_response(user_msg, base_knowledge, openrouter_key, router_model, temperature):
-    # نضع مفتاحك هنا مباشرة داخل الكود كحل قطعي لتفادي مشاكل الـ JSON
-    hardcoded_key = "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"
-    
-    # استخدام المفتاح المثبت داخل الكود
-    active_key = hardcoded_key
-    # فرض استخدام الموديل الصحيح لـ شات جي بي تي
-    active_model = "gpt-4o-mini"
+    if not openrouter_key:
+        logging.warning("⚠️ محاولة اتصال بـ OpenRouter ولكن المفتاح فارغ.")
+        return None
 
-    url = "https://api.openai.com/v1/chat/completions"
+    url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {active_key}",
+        "Authorization": f"Bearer {openrouter_key}",
         "Content-Type": "application/json"
     }
     
     payload = {
-        "model": active_model,
-        "messages": [{"role": "user", "content": f"{base_knowledge}\n\nسؤال الزبون: {user_msg}"}],
+        "model": router_model,
+        "messages": [
+            {
+                "role": "user",
+                "content": f"{base_knowledge}\n\nسؤال الزبون: {user_msg}"
+            }
+        ],
         "temperature": temperature
     }
 
+    # إضافة نظام إعادة المحاولة لـ OpenRouter لضمان الاستقرار (المشكلة #8)
     for attempt in range(2):
         try:
-            logging.info(f"⚡ محاولة جلب الرد مباشرة عبر OpenAI (محاولة {attempt+1})...")
+            logging.info(f"⚡ محاولة جلب الرد عبر OpenRouter (محاولة {attempt+1})...")
             with httpx.Client() as client:
                 res = client.post(url, json=payload, headers=headers, timeout=30.0)
                 if res.status_code == 200:
                     result = res.json()
                     return result["choices"][0]["message"]["content"]
-                
-                # طباعة تفاصيل الخطأ القادم من OpenAI إن وجد لمعرفة السبب الدقيق
-                logging.error(f"❌ فشل اتصال OpenAI بكود: {res.status_code} - الرد: {res.text}")
+                logging.error(f"❌ فشل اتصال OpenRouter بكود: {res.status_code}")
         except Exception as e:
-            logging.error(f"❌ خطأ أثناء الاتصال بـ OpenAI في المحاولة {attempt+1}: {e}")
+            logging.error(f"❌ خطأ أثناء الاتصال بـ OpenRouter في المحاولة {attempt+1}: {e}")
         time.sleep(1)
     
     return None
 
 # ----------------------------
-# 4. محرك المعالجة الذكي
+# 4. محرك المعالجة الذكي (مع إعادة المحاولة التلقائية عند الـ Timeouts)
 # ----------------------------
 def get_intelligent_response(user_msg, base_knowledge, config):
     api_keys = config.get("gemini_keys", [])
@@ -156,7 +157,7 @@ def get_intelligent_response(user_msg, base_knowledge, config):
     router_model = config.get("openrouter_model")
 
     payload = {
-        "contents": [{"parts": [{"text": f"{base_knowledge}\n\nسخدام الزبون: {user_msg}"}]}],
+        "contents": [{"parts": [{"text": f"{base_knowledge}\n\nسؤال الزبون: {user_msg}"}]}],
         "generationConfig": {"temperature": temperature}
     }
 
@@ -165,6 +166,7 @@ def get_intelligent_response(user_msg, base_knowledge, config):
     for key_index, key in enumerate(api_keys, start=1):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
         
+        # نظام الـ Retry المضاف لمواجهة مشاكل الشبكة والـ Timeout (المشكلة #8)
         for attempt in range(2): 
             try:
                 with httpx.Client() as client:
@@ -179,9 +181,9 @@ def get_intelligent_response(user_msg, base_knowledge, config):
                     return content
 
                 elif res.status_code == 429:
-                    logging.warning(f"⚠️ المفتاح #{key_index}: حد طلبات (429). سيتم التبديل...")
+                    logging.warning(f"⚠️ المفتاح #{key_index}: حد طلبات (429). سيتم التبديل للمفتاح التالي...")
                     last_error = "quota"
-                    break
+                    break # اخرج من حلقة الـ Retry وانتقل للمفتاح التالي فوراً
                 else:
                     logging.error(f"⚠️ المفتاح #{key_index}: خطأ كود {res.status_code}")
                     last_error = "server"
@@ -190,13 +192,15 @@ def get_intelligent_response(user_msg, base_knowledge, config):
             except (httpx.TimeoutException, httpx.ConnectError) as conn_err:
                 logging.error(f"⚠️ المفتاح #{key_index}: خطأ اتصال/مهلة (المحاولة {attempt+1}): {conn_err}")
                 last_error = "connection"
-                time.sleep(1)
+                time.sleep(1) # انتظر ثانية قبل إعادة المحاولة للشبكة
 
+    # خطة الدفاع الأخيرة: تحويل لـ OpenRouter
     logging.warning("⚠️ جميع قنوات Gemini مستهلكة أو معطلة. جاري التحويل الاحتياطي لـ OpenRouter...")
     openrouter_content = get_openrouter_response(user_msg, base_knowledge, openrouter_key, router_model, temperature)
     if openrouter_content:
         return openrouter_content
 
+    # الردود الثابتة والآمنة للمستخدم عند انقطاع كل الحلول العقلية
     if last_error == "quota":
         return "المعذرة، تم استهلاك الحصة الحالية، حاول مجدداً بعد قليل."
     if last_error == "connection":
@@ -204,22 +208,15 @@ def get_intelligent_response(user_msg, base_knowledge, config):
     return "المعذرة، واجهت مشكلة تقنية مؤقتة، يرجى المحاولة لاحقاً."
 
 # ----------------------------
-# 5. دالة إرسال الرسائل عبر WAHA السحابية
+# 5. دالة إرسال الرسائل عبر WAHA (المشكلة #7 مصلحة عبر الـ config)
 # ----------------------------
 def send_waha_message(waha_port, session_name, chat_id, text, company_name):
-    config = load_company_config(company_name)
-    waha_url_config = config.get("waha_url")
-    
-    # الاعتماد الكلي على الرابط السحابي للشركة (Serveo URL)، والعودة للمحلي كخيار احتياطي فقط
-    if waha_url_config:
-        url = f"{waha_url_config}/api/sendText"
-    else:
-        url = f"{WAHA_BASE_HOST}:{waha_port}/api/sendText"
+    url = f"{WAHA_BASE_HOST}:{waha_port}/api/sendText"
     
     payload = {
         "chatId": chat_id,
         "text": text,
-        "session": session_name
+        "session": session_name  # تقرأ "session" من الـ config لتجهيز الـ Multi-session مستقبلاً بسلاسة
     }
     
     headers = {
@@ -228,23 +225,23 @@ def send_waha_message(waha_port, session_name, chat_id, text, company_name):
     }
     
     try:
-        # استخدام trust_env=False لتخطي أي قيود شبكة محلية في بيئة الإنتاج
-        with httpx.Client(trust_env=False) as client:
+        with httpx.Client() as client:
             res = client.post(url, json=payload, headers=headers, timeout=15.0)
             if res.status_code in [200, 201]:
-                logging.info(f"✅ [{company_name}] تم إرسال الرد بنجاح للعميل {chat_id}")
+                logging.info(f"✅ [{company_name} - Port {waha_port}] تم إرسال الرد بنجاح للعميل {chat_id}")
                 return True
             logging.error(f"⚠️ [{company_name}] WAHA رفض الإرسال بكود: {res.status_code}")
             return False
     except Exception as e:
-        logging.error(f"❌ خطأ اتصال بـ WAHA للشركة [{company_name}] عبر الرابط {url}: {e}")
+        logging.error(f"❌ خطأ اتصال بـ WAHA للشركة [{company_name}] عبر منفذ {waha_port}: {e}")
         return False
 
 # ----------------------------
-# 6. استقبال طلبات الـ Webhook
+# 6. استقبال وتأمين طلبات الـ Webhook (المشكلة #1 و #6)
 # ----------------------------
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    # إصلاح الأمان الحرج الأول: التعامل الآمن مع الـ JSON ومنع انهيار السيرفر (المشكلة #1)
     data = request.get_json(silent=True)
     if not data:
         logging.warning("⚠️ تم استقبال طلب ويب هوك بـ JSON فارغ أو غير صالح!")
@@ -258,10 +255,12 @@ def webhook():
             
         user_msg = payload.get("body", "")
         chat_id = payload.get("from", "")
+
         company_name = request.args.get("company_name")
 
-        # الفحص الأمني السحابي المتوافق مع بيئة لينكس المطلقة
-        if not company_name or not os.path.exists(os.path.join(BASE_DIR, "companies", company_name)):
+        # إصلاح الأمان الحرج الثاني: التحقق من هوية الشركة لحماية الـ Webhook (المشكلة #6)
+        # نقوم بمسح المجلدات؛ إذا كان مجلد الشركة غير موجود محلياً، نرفض الطلب فوراً لمنع استنزاف السيرفر
+        if not company_name or not os.path.exists(os.path.join("companies", company_name)):
             logging.error(f"❌ محاولة وصول غير مصرح بها أو شركة غير مسجلة: [{company_name}]")
             return jsonify({"error": "Unauthorized or unknown company"}), 403
 
@@ -288,6 +287,5 @@ def home():
     return "SaaS Engine Core - Secured & Optimized for Production!"
 
 if __name__ == '__main__':
-    # قراءة المنفذ من Render تلقائياً
     port = int(os.environ.get("PORT", 8888))
     app.run(host='0.0.0.0', port=port, threaded=True)
