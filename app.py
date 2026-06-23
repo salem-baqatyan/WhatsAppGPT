@@ -112,7 +112,7 @@ def get_openrouter_response(user_msg, base_knowledge, openrouter_key, router_mod
         logging.warning("⚠️ محاولة اتصال بـ OpenRouter ولكن المفتاح فارغ.")
         return None
 
-    url = "https://openrouter.ai/api/v1/chat/completions"
+    url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openrouter_key}",
         "Content-Type": "application/json"
