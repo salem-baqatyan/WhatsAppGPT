@@ -112,7 +112,7 @@ def get_openrouter_response(user_msg, base_knowledge, openrouter_key, router_mod
         logging.warning("⚠️ محاولة اتصال بـ OpenRouter ولكن المفتاح فارغ.")
         return None
 
-    url = "https://api.openai.com/v1/chat/completions"
+    url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openrouter_key}",
         "Content-Type": "application/json"
@@ -198,50 +198,45 @@ def get_intelligent_response(user_msg, base_knowledge, config):
     return "المعذرة، واجهت مشكلة تقنية مؤقتة، يرجى المحاولة لاحقاً."
 
 # ----------------------------
-# 5. دالة إرسال الرسائل عبر WAHA السحابية (المحدثة لمتغيرات البيئة الديناميكية)
+# 3. دالة جلب الاستجابة من OpenAI مباشرة (تعديل طوارئ مستقر)
 # ----------------------------
-def send_waha_message(waha_port, session_name, chat_id, text, company_name):
-    config = load_company_config(company_name)
+def get_openrouter_response(user_msg, base_knowledge, openrouter_key, router_model, temperature):
+    # نضع مفتاحك هنا مباشرة داخل الكود كحل قطعي لتفادي مشاكل الـ JSON
+    hardcoded_key = "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"
     
-    # 1. أولاً: نحاول قراءة الرابط من متغيرات البيئة في Render (بتحويل اسم الشركة لأحرف كبيرة)
-    # مثلاً لو الشركة saas_bot سيبحث عن متغير باسم: WAHA_URL_SAAS_BOT
-    env_var_name = f"WAHA_URL_{company_name.upper()}"
-    waha_url_config = os.environ.get(env_var_name)
-    
-    # 2. ثانياً: إذا لم نجد متغير بيئة، نأخذ الرابط من ملف config.json الخاص بالشركة
-    if not waha_url_config:
-        waha_url_config = config.get("waha_url")
-    
-    # بناء الرابط النهائي للإرسال
-    if waha_url_config:
-        # إزالة السلاش المائل الأخير إن وجد لضمان عدم تكراره في الرابط
-        waha_url_config = waha_url_config.rstrip('/')
-        url = f"{waha_url_config}/api/sendText"
-    else:
-        url = f"{WAHA_BASE_HOST}:{waha_port}/api/sendText"
-    
-    payload = {
-        "chatId": chat_id,
-        "text": text,
-        "session": session_name
-    }
-    
+    # استخدام المفتاح المثبت داخل الكود
+    active_key = hardcoded_key
+    # فرض استخدام الموديل الصحيح لـ شات جي بي تي
+    active_model = "gpt-4o-mini"
+
+    url = "https://api.openai.com/v1/chat/completions"
     headers = {
-        "X-Api-Key": WAHA_API_KEY,
+        "Authorization": f"Bearer {active_key}",
         "Content-Type": "application/json"
     }
     
-    try:
-        with httpx.Client(trust_env=False) as client:
-            res = client.post(url, json=payload, headers=headers, timeout=15.0)
-            if res.status_code in [200, 201]:
-                logging.info(f"✅ [{company_name}] تم إرسال الرد بنجاح للعميل {chat_id} عبر {url}")
-                return True
-            logging.error(f"⚠️ [{company_name}] WAHA رفض الإرسال بكود: {res.status_code}")
-            return False
-    except Exception as e:
-        logging.error(f"❌ خطأ اتصال بـ WAHA للشركة [{company_name}] عبر الرابط {url}: {e}")
-        return False
+    payload = {
+        "model": active_model,
+        "messages": [{"role": "user", "content": f"{base_knowledge}\n\nسؤال الزبون: {user_msg}"}],
+        "temperature": temperature
+    }
+
+    for attempt in range(2):
+        try:
+            logging.info(f"⚡ محاولة جلب الرد مباشرة عبر OpenAI (محاولة {attempt+1})...")
+            with httpx.Client() as client:
+                res = client.post(url, json=payload, headers=headers, timeout=30.0)
+                if res.status_code == 200:
+                    result = res.json()
+                    return result["choices"][0]["message"]["content"]
+                
+                # طباعة تفاصيل الخطأ القادم من OpenAI إن وجد لمعرفة السبب الدقيق
+                logging.error(f"❌ فشل اتصال OpenAI بكود: {res.status_code} - الرد: {res.text}")
+        except Exception as e:
+            logging.error(f"❌ خطأ أثناء الاتصال بـ OpenAI في المحاولة {attempt+1}: {e}")
+        time.sleep(1)
+    
+    return None
 
 # ----------------------------
 # 6. استقبال طلبات الـ Webhook
