@@ -5,10 +5,10 @@
   "session": "default",
   "gemini_keys": [
     "AQ.Ab8RN6IsAuiqYtiPoBHd0v-GSFSzq7DX2qNlkLa0JejkwYak4w",
-    "AQ.Ab8RN6IsAuiqYtiPoBHd0v-GSFSzq7DX2qNlkLa0JejkwYak4w",
-    "AQ.Ab8RN6IsAuiqYtiPoBHd0v-GSFSzq7DX2qNlkLa0JejkwYak4w"
+    "",
+    ""
   ],
-  "openrouter_api_key": "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",
+  "openrouter_api_key": "",
   "model": "gemini-2.5-flash",
   "temperature": 0.7
 }
