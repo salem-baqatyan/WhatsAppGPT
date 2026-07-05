@@ -1,14 +1,13 @@
 {
   "company_name": "saas_bot",
   "waha_port": 3000,
-  "waha_url": "https://b1e8a3fbc72f1af9-31-31-191-168.serveousercontent.com",
   "session": "default",
   "gemini_keys": [
     "AQ.Ab8RN6LfnhUYYvZZ7G0NCaf1HNJysFQHeRslsiVA0X0BPEBzPA",
     "",
     ""
   ],
-  "openrouter_api_key": "",
+  "openrouter_api_key": "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",
   "model": "gemini-2.5-flash",
   "temperature": 0.7
 }

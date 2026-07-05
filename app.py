@@ -241,7 +241,6 @@ def send_waha_message(waha_port, session_name, chat_id, text, company_name):
 # ----------------------------
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # إصلاح الأمان الحرج الأول: التعامل الآمن مع الـ JSON ومنع انهيار السيرفر (المشكلة #1)
     data = request.get_json(silent=True)
     if not data:
         logging.warning("⚠️ تم استقبال طلب ويب هوك بـ JSON فارغ أو غير صالح!")
@@ -250,22 +249,40 @@ def webhook():
     if data.get("event") == "message":
         payload = data.get("payload", {})
         
+        # 1. تجاهل الرسائل الصادرة من البوت نفسه
         if payload.get("fromMe") is True:
             return "Ignored outward message", 200
             
-        user_msg = payload.get("body", "")
         chat_id = payload.get("from", "")
+        user_msg = payload.get("body", "")
+        
+        # 2. حماية صارمة: تجاهل الحالات (Statuses) والقصص تماماً
+        # WAHA يرسل معرف الحالة غالباً على شكل يحتوي على 'status' أو 'broadcast'
+        if "status" in chat_id.lower() or "broadcast" in chat_id.lower():
+            logging.info(f"🚫 تم تجاهل رسالة من حالة/ستوري أو بث: {chat_id}")
+            return "Ignored status/broadcast", 200
+
+        # 3. حماية صارمة: تجاهل المجموعات (Groups) والقنوات
+        # في واتساب، معرفات المجموعات تنتهي بـ @g.us
+        # وأي رسالة من مجموعة تحتوي عادةً على حقل 'participant' (الشخص الذي أرسل داخل المجموعة)
+        if chat_id.endswith("@g.us") or "participant" in payload:
+            logging.info(f"🚫 تم تجاهل رسالة مجموعة (Group): {chat_id}")
+            return "Ignored group message", 200
+
+        # 4. التأكد أن المحادثة خاصة فقط (تنتهي بـ @c.us أو @s.whatsapp.net)
+        if not (chat_id.endswith("@c.us") or chat_id.endswith("@s.whatsapp.net")):
+            logging.info(f"🚫 تم تجاهل نوع محادثة غير مدعوم: {chat_id}")
+            return "Ignored unsupported chat type", 200
 
         company_name = request.args.get("company_name")
 
-        # إصلاح الأمان الحرج الثاني: التحقق من هوية الشركة لحماية الـ Webhook (المشكلة #6)
-        # نقوم بمسح المجلدات؛ إذا كان مجلد الشركة غير موجود محلياً، نرفض الطلب فوراً لمنع استنزاف السيرفر
+        # التحقق من هوية الشركة لحماية الـ Webhook
         if not company_name or not os.path.exists(os.path.join("companies", company_name)):
             logging.error(f"❌ محاولة وصول غير مصرح بها أو شركة غير مسجلة: [{company_name}]")
             return jsonify({"error": "Unauthorized or unknown company"}), 403
 
         if user_msg and chat_id:
-            logging.info(f"💬 [{company_name}] رسالة واردة من {chat_id}: {user_msg}")
+            logging.info(f"💬 [{company_name}] رسالة خاصة واردة من {chat_id}: {user_msg}")
             
             config = load_company_config(company_name)
             company_knowledge = load_company_knowledge(company_name)
@@ -281,7 +298,7 @@ def webhook():
             return "OK", 200
 
     return "Ignored event", 200
-
+    
 @app.route('/')
 def home():
     return "SaaS Engine Core - Secured & Optimized for Production!"

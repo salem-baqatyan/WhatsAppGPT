@@ -1,14 +1,13 @@
 {
   "company_name": "lt_mobile",
-  "waha_port": 3001,
-  "waha_url": "https://7b173fdf6643bc07-31-31-191-168.serveousercontent.com",
+  "waha_port": 300,
   "session": "default",
   "gemini_keys": [
-    "AQ.Ab8RN6JBSzz7N4lyiAm6k4FLBRh7OUUIBmorbzYeT1Dws8bNXA",
+    "AQ.Ab8RN6LfnhUYYvZZ7G0NCaf1HNJysFQHeRslsiVA0X0BPEBzPA",
     "",
     ""
   ],
-  "openrouter_api_key": "",
+  "openrouter_api_key": "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",
   "model": "gemini-2.5-flash",
   "temperature": 0.7
 }
