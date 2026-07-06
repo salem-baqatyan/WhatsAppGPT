@@ -7,7 +7,7 @@
     "",
     ""
   ],
-  "openrouter_api_key": "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",
+  "openrouter_api_key": "sk-or-v1-",
   "model": "gemini-2.5-flash",
   "temperature": 0.7
 }

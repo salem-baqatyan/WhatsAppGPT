@@ -1,0 +1,78 @@
+CREATE TYPE user_role AS ENUM (
+'ADMIN',
+'CUSTOMER'
+);
+
+CREATE TYPE user_status AS ENUM (
+'ACTIVE',
+'SUSPENDED',
+'PENDING'
+);
+
+CREATE TYPE company_status AS ENUM (
+'TRIAL',
+'ACTIVE',
+'EXPIRED',
+'SUSPENDED'
+);
+
+CREATE TYPE subscription_status AS ENUM (
+'ACTIVE',
+'EXPIRED',
+'CANCELLED',
+'PAUSED'
+);
+
+CREATE TYPE waha_status AS ENUM (
+'CREATED',
+'STARTING',
+'WAITING_QR',
+'CONNECTED',
+'DISCONNECTED',
+'FAILED'
+);
+
+CREATE TYPE ai_provider AS ENUM (
+'OPENROUTER',
+'GEMINI',
+'OPENAI'
+);
+
+CREATE TYPE conversation_status AS ENUM (
+'OPEN',
+'CLOSED',
+'ARCHIVED'
+);
+
+CREATE TYPE message_role AS ENUM (
+'USER',
+'ASSISTANT',
+'SYSTEM'
+);
+
+CREATE TYPE report_type AS ENUM (
+'DAILY',
+'WEEKLY',
+'MONTHLY',
+'YEARLY'
+);
+
+CREATE TYPE report_status AS ENUM (
+'GENERATING',
+'READY',
+'FAILED'
+);
+
+CREATE TYPE notification_type AS ENUM (
+'TRIAL_END',
+'MONTHLY_REPORT',
+'WEEKLY_REPORT',
+'RENEWAL',
+'LOW_BALANCE'
+);
+
+CREATE TYPE notification_status AS ENUM (
+'PENDING',
+'SENT',
+'FAILED'
+);
